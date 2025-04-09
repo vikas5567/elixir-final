@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Button,
@@ -7,10 +7,12 @@ import {
   Container,
   Paper,
   Link,
+  Alert,
 } from '@mui/material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
+import { supabase } from '../../lib/supabaseClient';
 
 const loginValidationSchema = Yup.object({
   email: Yup.string().email('Invalid email address').required('Email is required'),
@@ -29,17 +31,43 @@ const signupValidationSchema = Yup.object({
 
 function AuthForm() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isLogin = location.pathname === '/login';
+  const [error, setError] = useState('');
 
-  const handleSubmit = (values, { setSubmitting }) => {
-    // Handle authentication logic here
-    console.log('Form values:', values);
-    setSubmitting(false);
+  const handleSubmit = async (values, { setSubmitting }) => {
+    try {
+      setError('');
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: values.email,
+          password: values.password,
+        });
+        if (error) throw error;
+        navigate('/');
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: values.email,
+          password: values.password,
+        });
+        if (error) throw error;
+        navigate('/login');
+      }
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <Container maxWidth="sm">
       <Paper elevation={3} sx={{ mt: 4, p: 3 }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Typography variant="h5" component="h1" align="center" gutterBottom>
           {isLogin ? 'Login' : 'Sign Up'}
         </Typography>
